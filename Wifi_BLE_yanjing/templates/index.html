@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能仿生眼控制上位机｜Flask 版</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    font-family:"Microsoft YaHei","Segoe UI",Arial,sans-serif;
+    background:#f5f7fb;
+    color:#1f2937;
+    min-height:100vh;
+    padding:16px;
+}
+
+.login-page{
+    min-height:calc(100vh - 32px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.login-card{
+    width:min(780px,100%);
+    background:#ffffff;
+    border:1px solid #d1d5db;
+    border-radius:18px;
+    box-shadow:0 18px 42px rgba(15,23,42,.12);
+    overflow:hidden;
+}
+.login-header{
+    padding:24px 28px;
+    background:linear-gradient(180deg,#ffffff 0%,#f3f4f6 100%);
+    border-bottom:1px solid #d1d5db;
+}
+.login-header h1{
+    font-size:26px;
+    color:#111827;
+    margin-bottom:8px;
+}
+.login-header p{
+    font-size:14px;
+    color:#4b5563;
+    line-height:1.7;
+}
+.login-form{
+    padding:24px 28px 28px;
+}
+.login-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px;
+}
+.login-field{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    font-size:13px;
+    font-weight:700;
+    color:#374151;
+}
+.login-field input{
+    min-height:44px;
+    border:1px solid #9ca3af;
+    border-radius:9px;
+    padding:0 12px;
+    font-size:14px;
+    background:#ffffff;
+    color:#111827;
+}
+.login-field input:focus{
+    outline:2px solid rgba(37,99,235,.22);
+    border-color:#2563eb;
+}
+.login-actions{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:12px;
+    align-items:center;
+}
+.login-btn{
+    min-height:46px;
+    padding:0 22px;
+    border-radius:9px;
+    border:1px solid #1d4ed8;
+    background:#2563eb;
+    color:#ffffff;
+    font-size:15px;
+    font-weight:800;
+    cursor:pointer;
+}
+.login-btn:hover{background:#1d4ed8}
+.login-btn.secondary{
+    border-color:#9ca3af;
+    background:#ffffff;
+    color:#111827;
+}
+.login-btn.secondary:hover{background:#e5e7eb}
+.login-status{
+    min-height:22px;
+    font-size:13px;
+    color:#6b7280;
+    word-break:break-all;
+}
+.primary-login-grid{
+    grid-template-columns:repeat(3,1fr);
+}
+.advanced-toggle{
+    margin-top:16px;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:700;
+    color:#374151;
+    cursor:pointer;
+    user-select:none;
+}
+.advanced-toggle input{
+    width:16px;
+    height:16px;
+}
+.advanced-config{
+    display:none;
+    margin-top:14px;
+    padding:14px;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    background:#f9fafb;
+}
+.advanced-config.open{display:block}
+.advanced-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px;
+}
+.advanced-grid .login-field input{
+    background:#ffffff;
+}
+.app-page{display:none}
+.top-actions{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.config-switch-btn{
+    min-height:34px;
+    padding:0 12px;
+    border-radius:999px;
+    border:1px solid #9ca3af;
+    background:#ffffff;
+    color:#374151;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+}
+.config-switch-btn:hover{background:#e5e7eb}
+
+.container{
+    max-width:1480px;
+    margin:0 auto;
+    background:#ffffff;
+    border:1px solid #d1d5db;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 12px 32px rgba(15,23,42,.10);
+}
+.top-bar{
+    min-height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:0 20px;
+    background:linear-gradient(180deg,#ffffff 0%,#f3f4f6 100%);
+    border-bottom:1px solid #d1d5db;
+}
+.top-bar h1{
+    font-size:22px;
+    font-weight:700;
+    color:#111827;
+}
+.status-chip{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:116px;
+    justify-content:center;
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid #d1d5db;
+    background:#ffffff;
+    font-size:14px;
+    font-weight:700;
+}
+.status-chip .status-dot{
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:#9ca3af;
+}
+.status-chip.connected .status-dot{background:#16a34a}
+.status-chip.connecting .status-dot{background:#f59e0b}
+.status-chip.disconnected .status-dot{background:#ef4444}
+
+.main-area{
+    display:grid;
+    grid-template-columns:minmax(560px,.96fr) minmax(620px,1.04fr);
+    min-height:720px;
+}
+.left-area{
+    padding:16px;
+    border-right:1px solid #e5e7eb;
+    background:#ffffff;
+}
+.right-area{
+    padding:16px;
+    background:#f8fafc;
+    display:grid;
+    grid-template-columns:minmax(280px,.9fr) minmax(360px,1.1fr);
+    gap:14px;
+    align-content:start;
+}
+.panel{
+    border:1px solid #d1d5db;
+    border-radius:12px;
+    background:#ffffff;
+    overflow:hidden;
+    box-shadow:0 4px 14px rgba(15,23,42,.05);
+}
+.panel-title{
+    min-height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:0 12px;
+    background:#f3f4f6;
+    border-bottom:1px solid #d1d5db;
+    font-size:15px;
+    font-weight:700;
+    color:#111827;
+}
+.panel-body{padding:14px}
+.eyes-card{height:100%}
+.monitor-grid{
+    display:grid;
+    grid-template-columns:minmax(285px,.95fr) minmax(230px,1.05fr);
+    gap:12px;
+    align-items:stretch;
+}
+.eye-preview,
+.log-inline-card{
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    background:#ffffff;
+    overflow:hidden;
+}
+.eye-preview{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    min-height:280px;
+    background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);
+}
+.eyes-wrapper{
+    min-height:210px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:20px;
+    background:transparent;
+}
+.single-eye svg{
+    width:155px;
+    height:155px;
+}
+.expression-label{
+    margin:0 12px 12px;
+    padding:10px 14px;
+    text-align:center;
+    border:1px solid #d1d5db;
+    border-radius:8px;
+    background:#f9fafb;
+    font-size:16px;
+    font-weight:700;
+    color:#111827;
+}
+.log-inline-card{
+    display:flex;
+    flex-direction:column;
+    min-height:280px;
+    background:#fbfdff;
+}
+.inline-title{
+    height:38px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 10px;
+    border-bottom:1px solid #e5e7eb;
+    background:#f9fafb;
+    font-size:14px;
+    font-weight:700;
+    color:#111827;
+}
+.inline-title button{
+    min-height:28px;
+    padding:0 10px;
+    border-radius:7px;
+    border:1px solid #9ca3af;
+    background:#ffffff;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+    color:#374151;
+}
+.inline-title button:hover{background:#e5e7eb}
+.log-box{
+    height:238px;
+    overflow-y:auto;
+    border:none;
+    border-radius:0;
+    background:#ffffff;
+    padding:10px;
+}
+.log-entry{
+    margin-bottom:8px;
+    padding:9px 10px;
+    border-radius:8px;
+    line-height:1.5;
+    font-size:12.5px;
+    font-family:Consolas,"Microsoft YaHei",monospace;
+    word-break:break-all;
+    white-space:pre-wrap;
+}
+.log-sent{
+    color:#1d4ed8;
+    background:#eff6ff;
+    border-left:5px solid #2563eb;
+}
+.log-received{
+    color:#047857;
+    background:#ecfdf5;
+    border-left:5px solid #10b981;
+}
+.log-error{
+    color:#b91c1c;
+    background:#fef2f2;
+    border-left:5px solid #ef4444;
+}
+.log-info{
+    color:#4b5563;
+    background:#f3f4f6;
+    border-left:5px solid #9ca3af;
+}
+.monitor-hint{
+    margin-top:10px;
+    padding:9px 10px;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    background:#f9fafb;
+}
+.state-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    margin-top:12px;
+}
+.state-item{
+    padding:10px 12px;
+    border:1px solid #e5e7eb;
+    border-radius:8px;
+    background:#f9fafb;
+}
+.state-item .label{
+    display:block;
+    font-size:12px;
+    color:#6b7280;
+    margin-bottom:6px;
+}
+.state-item .value{
+    display:block;
+    font-size:14px;
+    font-weight:700;
+    color:#111827;
+    word-break:break-all;
+}
+.btn-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+}
+.btn-grid button,
+.tool-row button{
+    min-height:46px;
+    border-radius:8px;
+    border:1px solid #9ca3af;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:700;
+    transition:all .15s ease;
+    background:#ffffff;
+    color:#111827;
+}
+.btn-grid button:hover,
+.tool-row button:hover{
+    background:#e5e7eb;
+}
+.btn-grid button:active,
+.tool-row button:active{
+    transform:scale(.98);
+}
+.btn-grid button.active{
+    background:#2563eb;
+    border-color:#1d4ed8;
+    color:#ffffff;
+}
+.tool-row{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+.cmd-init{border-left:6px solid #6366f1 !important}
+.cmd-close{border-left:6px solid #64748b !important}
+.cmd-dis{border-left:6px solid #f59e0b !important}
+.cmd-surprise{border-left:6px solid #f97316 !important}
+.cmd-tired{border-left:6px solid #8b5cf6 !important}
+.cmd-smile{border-left:6px solid #10b981 !important}
+.cmd-wink{border-left:6px solid #ec4899 !important}
+.cmd-test{border-left:6px solid #0ea5e9 !important}
+.cmd-clear{border-left:6px solid #9ca3af !important}
+
+.hint-text{
+    margin-top:10px;
+    font-size:12px;
+    color:#6b7280;
+    line-height:1.6;
+}
+.eye-white,.pupil,.upper-lid,.lower-lid,.eyebrow,.highlight{
+    transition:all .35s cubic-bezier(.4,0,.2,1);
+}
+
+.sequence-builder{
+    display:grid;
+    grid-template-columns:1fr auto auto;
+    gap:10px;
+    align-items:center;
+}
+.sequence-builder select,
+.sequence-setting input{
+    min-height:42px;
+    border:1px solid #9ca3af;
+    border-radius:8px;
+    padding:0 10px;
+    font-size:14px;
+    background:#ffffff;
+    color:#111827;
+}
+.sequence-builder button,
+.sequence-actions button,
+.preset-row button{
+    min-height:42px;
+    border-radius:8px;
+    border:1px solid #9ca3af;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:700;
+    background:#ffffff;
+    color:#111827;
+    transition:all .15s ease;
+}
+.sequence-builder button:hover,
+.sequence-actions button:hover,
+.preset-row button:hover{
+    background:#e5e7eb;
+}
+.sequence-builder button:active,
+.sequence-actions button:active,
+.preset-row button:active{
+    transform:scale(.98);
+}
+.sequence-list{
+    min-height:50px;
+    margin-top:12px;
+    padding:10px;
+    border:1px dashed #9ca3af;
+    border-radius:8px;
+    background:#f9fafb;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+}
+.seq-empty{
+    color:#6b7280;
+    font-size:13px;
+}
+.seq-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:7px 10px;
+    border:1px solid #d1d5db;
+    border-radius:999px;
+    background:#ffffff;
+    font-size:13px;
+    font-weight:700;
+}
+.seq-chip.active{
+    border-color:#2563eb;
+    background:#eff6ff;
+}
+.seq-chip button{
+    width:20px;
+    height:20px;
+    border:none;
+    border-radius:50%;
+    cursor:pointer;
+    background:#e5e7eb;
+    color:#374151;
+    font-weight:700;
+}
+.seq-arrow{
+    color:#6b7280;
+    font-size:14px;
+    line-height:32px;
+}
+.sequence-setting{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+.sequence-setting label{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size:13px;
+    color:#374151;
+    font-weight:700;
+}
+.sequence-check-group{
+    margin-top:10px;
+    display:grid;
+    gap:8px;
+    padding:10px 12px;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    background:#f9fafb;
+}
+.sequence-check{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    font-size:13px;
+    color:#374151;
+    line-height:1.55;
+}
+.sequence-actions{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+.sequence-actions .start{
+    background:#2563eb;
+    border-color:#1d4ed8;
+    color:#ffffff;
+}
+.sequence-actions .stop{
+    background:#ffffff;
+}
+.sequence-actions button:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+}
+.preset-row{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+.preset-row button{
+    text-align:left;
+    padding:0 10px;
+    line-height:1.35;
+}
+.sequence-setting input:focus,
+.sequence-builder select:focus{
+    outline:2px solid rgba(37,99,235,.25);
+    border-color:#2563eb;
+}
+@media (max-width:1220px){
+    .main-area{grid-template-columns:1fr}
+    .left-area{border-right:none;border-bottom:1px solid #e5e7eb}
+    .log-box{height:230px}
+}
+@media (max-width:860px){
+    .login-grid,.primary-login-grid,.advanced-grid{grid-template-columns:1fr}
+    .login-actions{grid-template-columns:1fr}
+    .right-area{grid-template-columns:1fr}
+    .monitor-grid{grid-template-columns:1fr}
+    .eye-preview,.log-inline-card{min-height:auto}
+    .state-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:640px){
+    body{padding:10px}
+    .top-bar{align-items:flex-start;flex-direction:column;padding:14px}
+    .sequence-builder,.sequence-setting,.preset-row{grid-template-columns:1fr}
+    .eyes-wrapper{gap:12px;min-height:170px}
+    .single-eye svg{width:130px;height:130px}
+    .btn-grid,.tool-row,.state-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="loginPage" class="login-page">
+    <div class="login-card">
+        <div class="login-header">
+            <h1>智能仿生眼控制上位机（Flask 版）</h1>
+            <p>浏览器通过 Flask 服务桥接 MQTT（TCP 协议，与硬件同协议），稳定可靠。请输入 MQTT 连接信息，完成后进入控制台。</p>
+        </div>
+        <div class="login-form">
+            <div class="login-grid primary-login-grid">
+                <label class="login-field">Host
+                    <input id="loginHost" type="text" autocomplete="off">
+                </label>
+                <label class="login-field">Port
+                    <input id="loginPort" type="number" min="1" max="65535" step="1">
+                </label>
+                <label class="login-field">Client ID
+                    <input id="loginClientId" type="text" autocomplete="off">
+                </label>
+            </div>
+
+            <label class="advanced-toggle">
+                <input id="advancedToggle" type="checkbox" onchange="toggleAdvancedConfig()">
+                <span>高级配置</span>
+            </label>
+
+            <div id="advancedConfig" class="advanced-config">
+                <div class="advanced-grid">
+                    <label class="login-field">指令主题 cmdTopic
+                        <input id="loginCmdTopic" type="text" autocomplete="off">
+                    </label>
+                    <label class="login-field">状态主题 statusTopic
+                        <input id="loginStatusTopic" type="text" autocomplete="off">
+                    </label>
+                </div>
+            </div>
+
+            <div class="login-actions">
+                <div id="loginStatus" class="login-status">配置已载入。</div>
+                <div>
+                    <button class="login-btn secondary" type="button" onclick="fillLoginDefaults()">恢复默认配置</button>
+                    <button class="login-btn" type="button" onclick="loginMQTT()">进入控制台</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="appPage" class="container app-page">
+    <div class="top-bar">
+        <h1>智能仿生眼控制上位机（Flask 版）</h1>
+        <div class="top-actions">
+            <div id="statusChip" class="status-chip disconnected">
+                <div class="status-dot"></div>
+                <span id="statusText">未连接</span>
+            </div>
+            <button class="config-switch-btn" onclick="showLoginPage()">连接配置</button>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <div class="left-area">
+            <div class="panel eyes-card">
+                <div class="panel-title">运行监控</div>
+                <div class="panel-body">
+                    <div class="monitor-grid">
+                        <div class="eye-preview">
+                            <div class="eyes-wrapper">
+                                <div class="single-eye" id="leftEye">
+                                    <svg viewBox="0 0 200 200">
+                                        <ellipse class="eye-white" cx="100" cy="100" rx="55" ry="65" fill="#e0f2fe" stroke="#2563eb" stroke-width="4" />
+                                        <path class="upper-lid" d="M45,100 Q100,40 155,100" fill="#ffddc1" stroke="#444" stroke-width="3" opacity="0" />
+                                        <path class="lower-lid" d="M45,100 Q100,155 155,100" fill="#ffddc1" stroke="#444" stroke-width="3" opacity="0" />
+                                        <circle class="pupil" cx="100" cy="100" r="20" fill="#1f2937" />
+                                        <circle class="highlight" cx="93" cy="91" r="6" fill="white" opacity="0.9" />
+                                        <path class="eyebrow" d="M48,52 Q75,38 100,56" fill="none" stroke="#111827" stroke-width="6" stroke-linecap="round" />
+                                    </svg>
+                                </div>
+
+                                <div class="single-eye" id="rightEye">
+                                    <svg viewBox="0 0 200 200">
+                                        <ellipse class="eye-white" cx="100" cy="100" rx="55" ry="65" fill="#e0f2fe" stroke="#2563eb" stroke-width="4" />
+                                        <path class="upper-lid" d="M45,100 Q100,40 155,100" fill="#ffddc1" stroke="#444" stroke-width="3" opacity="0" />
+                                        <path class="lower-lid" d="M45,100 Q100,155 155,100" fill="#ffddc1" stroke="#444" stroke-width="3" opacity="0" />
+                                        <circle class="pupil" cx="100" cy="100" r="20" fill="#1f2937" />
+                                        <circle class="highlight" cx="93" cy="91" r="6" fill="white" opacity="0.9" />
+                                        <path class="eyebrow" d="M100,56 Q125,38 152,52" fill="none" stroke="#111827" stroke-width="6" stroke-linecap="round" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="expression-label" id="expressionName">当前状态：等待设备同步</div>
+                        </div>
+
+                        <div class="log-inline-card">
+                            <div class="inline-title">
+                                <span>通信日志</span>
+                                <button onclick="clearLog()">清空日志</button>
+                            </div>
+                            <div id="log" class="log-box"></div>
+                        </div>
+                    </div>
+
+                    <div class="state-grid">
+                        <div class="state-item">
+                            <span class="label">最近已同步状态</span>
+                            <span class="value" id="currentStateText">无</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">待确认命令</span>
+                            <span class="value" id="pendingCmdText">无</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">最近同步时间</span>
+                            <span class="value" id="lastSyncText">--</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">同步超时</span>
+                            <span class="value" id="timeoutText">5000 ms</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">多表情循环状态</span>
+                            <span class="value" id="sequenceStatusText">未运行</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">当前表情序列</span>
+                            <span class="value" id="sequenceText">未设置</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="right-area">
+            <div class="panel control-panel">
+                <div class="panel-title">表情指令控制</div>
+                <div class="panel-body">
+                    <div class="btn-grid">
+                        <button class="cmd-init" data-cmd="init" onclick="send('init')">🔄 初始化</button>
+                        <button class="cmd-close" data-cmd="close" onclick="send('close')">😑 闭眼</button>
+                        <button class="cmd-dis" data-cmd="dis" onclick="send('dis')">😒 鄙视</button>
+                        <button class="cmd-surprise" data-cmd="surprise" onclick="send('surprise')">😲 惊讶</button>
+                        <button class="cmd-tired" data-cmd="tired" onclick="send('tired')">😴 疲倦</button>
+                        <button class="cmd-smile" data-cmd="smile" onclick="send('smile')">😊 微笑</button>
+                        <button class="cmd-wink" data-cmd="wink" onclick="send('wink')">😉 媚眼</button>
+                    </div>
+                    <div class="tool-row">
+                        <button class="cmd-test" onclick="simulateDeviceReply()">🧪 模拟设备回复</button>
+                        <button class="cmd-clear" onclick="clearLog()">🧹 清空日志</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel sequence-panel">
+                <div class="panel-title">多表情循环控制</div>
+                <div class="panel-body">
+                    <div class="sequence-builder">
+                        <select id="seqSelect" aria-label="选择要添加的表情">
+                            <option value="init">😐 正常</option>
+                            <option value="close">😑 闭眼</option>
+                            <option value="dis">😒 鄙视</option>
+                            <option value="surprise">😲 惊讶</option>
+                            <option value="tired">😴 疲倦</option>
+                            <option value="smile">😊 微笑</option>
+                            <option value="wink">😉 媚眼</option>
+                        </select>
+                        <button onclick="addSelectedToSequence()">➕ 添加</button>
+                        <button onclick="clearSequenceItems()">清空序列</button>
+                    </div>
+
+                    <div id="sequenceList" class="sequence-list"></div>
+
+                    <div class="preset-row">
+                        <button onclick="setSequencePreset(['smile','wink','surprise'])">演示：微笑→媚眼→惊讶</button>
+                        <button onclick="setSequencePreset(['close','init','smile'])">演示：闭眼→正常→微笑</button>
+                        <button onclick="setSequencePreset(['tired','close','init'])">演示：疲倦→闭眼→正常</button>
+                        <button onclick="setSequencePreset(['init','close','dis','surprise','tired','smile','wink'])">全表情循环</button>
+                    </div>
+
+                    <div class="sequence-setting">
+                        <label>
+                            动作间隔（ms）
+                            <input id="seqInterval" type="number" min="300" max="10000" step="100" value="3000">
+                        </label>
+                        <label>
+                            循环次数
+                            <input id="seqRepeat" type="number" min="1" max="99" step="1" value="3">
+                        </label>
+                    </div>
+
+                    <div class="sequence-check-group">
+                        <label class="sequence-check">
+                            <input id="continueOnTimeout" type="checkbox" checked>
+                            <span>单个动作等待设备回传超时后继续执行后续动作</span>
+                        </label>
+                        <label class="sequence-check">
+                            <input id="returnToInitAfterLoop" type="checkbox" checked>
+                            <span>循环正常结束后自动发送初始化（init），使仿生眼回正</span>
+                        </label>
+                    </div>
+
+                    <div class="sequence-actions">
+                        <button id="startSeqBtn" class="start" onclick="startMultiActionLoop()">▶ 开始循环</button>
+                        <button id="stopSeqBtn" class="stop" onclick="stopMultiActionLoop()" disabled>⏹ 停止循环</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const KNOWN_EXPRESSIONS = ['init', 'close', 'dis', 'surprise', 'tired', 'smile', 'wink'];
+
+let es = null;
+let currentState = '';
+let sequenceRunning = false;
+let sequenceItems = ['smile', 'wink', 'surprise'];
+
+const logEl = document.getElementById('log');
+const exprEl = document.getElementById('expressionName');
+const statusChip = document.getElementById('statusChip');
+const statusText = document.getElementById('statusText');
+const currentStateText = document.getElementById('currentStateText');
+const pendingCmdText = document.getElementById('pendingCmdText');
+const lastSyncText = document.getElementById('lastSyncText');
+const sequenceStatusText = document.getElementById('sequenceStatusText');
+const sequenceText = document.getElementById('sequenceText');
+const sequenceListEl = document.getElementById('sequenceList');
+const seqSelect = document.getElementById('seqSelect');
+const startSeqBtn = document.getElementById('startSeqBtn');
+const stopSeqBtn = document.getElementById('stopSeqBtn');
+
+const leftEye = document.querySelector('#leftEye svg');
+const rightEye = document.querySelector('#rightEye svg');
+const leftUpperLid = leftEye.querySelector('.upper-lid');
+const leftLowerLid = leftEye.querySelector('.lower-lid');
+const leftPupil = leftEye.querySelector('.pupil');
+const leftHighlight = leftEye.querySelector('.highlight');
+const leftEyebrow = leftEye.querySelector('.eyebrow');
+const rightUpperLid = rightEye.querySelector('.upper-lid');
+const rightLowerLid = rightEye.querySelector('.lower-lid');
+const rightPupil = rightEye.querySelector('.pupil');
+const rightHighlight = rightEye.querySelector('.highlight');
+const rightEyebrow = rightEye.querySelector('.eyebrow');
+
+const nameMap = {
+    init: '😐 正常',
+    close: '😑 闭眼',
+    dis: '😒 鄙视',
+    surprise: '😲 惊讶',
+    tired: '😴 疲倦',
+    smile: '😊 微笑',
+    wink: '😉 媚眼'
+};
+
+function nowStr() {
+    return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+}
+
+function normalizeCommand(value) {
+    return String(value == null ? '' : value).trim().toLowerCase();
+}
+
+function isKnownExpression(value) {
+    return KNOWN_EXPRESSIONS.includes(normalizeCommand(value));
+}
+
+// ==================== 后端 API ====================
+async function api(path, body) {
+    const opt = { method: body === undefined ? 'GET' : 'POST' };
+    if (body !== undefined) {
+        opt.headers = { 'Content-Type': 'application/json' };
+        opt.body = JSON.stringify(body);
+    }
+    const res = await fetch(path, opt);
+    return res.json();
+}
+
+// ==================== 日志 ====================
+function addLog(message, type = 'info') {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (
+        type === 'sent' ? 'log-sent' :
+        type === 'received' ? 'log-received' :
+        type === 'error' ? 'log-error' : 'log-info'
+    );
+    entry.textContent = '[' + nowStr() + '] ' + message;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function clearLog() {
+    logEl.innerHTML = '';
+    addLog('日志已清空。', 'info');
+}
+
+// ==================== 连接状态 ====================
+function setConnectionState(state) {
+    statusChip.className = 'status-chip ' + state;
+    if (state === 'connected') statusText.textContent = '已连接';
+    else if (state === 'connecting') statusText.textContent = '连接中';
+    else statusText.textContent = '未连接';
+}
+
+function setPendingText(cmd) {
+    pendingCmdText.textContent = cmd ? (cmd + '（等待回传）') : '无';
+}
+
+function setLoginStatus(message, type) {
+    const el = document.getElementById('loginStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.color = type === 'error' ? '#b91c1c' : (type === 'ok' ? '#047857' : '#6b7280');
+}
+
+// ==================== 登录页 ====================
+function toggleAdvancedConfig() {
+    const checked = document.getElementById('advancedToggle').checked;
+    document.getElementById('advancedConfig').classList.toggle('open', checked);
+}
+
+async function fillLoginDefaults() {
+    try {
+        const res = await api('/api/config');
+        const cfg = res.config || {};
+        document.getElementById('loginHost').value = cfg.host || '';
+        document.getElementById('loginPort').value = cfg.port || '';
+        document.getElementById('loginClientId').value = cfg.client_id || '';
+        document.getElementById('loginCmdTopic').value = cfg.cmd_topic || '';
+        document.getElementById('loginStatusTopic').value = cfg.status_topic || '';
+    } catch (e) {
+        setLoginStatus('加载默认配置失败：' + e, 'error');
+        return;
+    }
+    const advancedToggle = document.getElementById('advancedToggle');
+    if (advancedToggle) {
+        advancedToggle.checked = false;
+        toggleAdvancedConfig();
+    }
+    setLoginStatus('配置已载入。', 'info');
+}
+
+function readLoginConfig() {
+    const config = {
+        host: document.getElementById('loginHost').value.trim(),
+        port: parseInt(document.getElementById('loginPort').value, 10),
+        client_id: document.getElementById('loginClientId').value.trim(),
+        cmd_topic: document.getElementById('loginCmdTopic').value.trim(),
+        status_topic: document.getElementById('loginStatusTopic').value.trim()
+    };
+
+    if (!config.host) throw new Error('Host 不能为空');
+    if (!Number.isFinite(config.port) || config.port <= 0 || config.port > 65535) throw new Error('Port 必须是 1 到 65535 之间的数字');
+    if (!config.client_id) throw new Error('Client ID 不能为空');
+
+    return config;
+}
+
+function showControlPage() {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appPage').style.display = 'block';
+}
+
+function showLoginPage() {
+    api('/api/disconnect');
+    closeStream();
+    document.getElementById('appPage').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'flex';
+    setConnectionState('disconnected');
+    setLoginStatus('可修改连接配置后重新进入控制台。', 'info');
+}
+
+async function loginMQTT() {
+    let config;
+    try {
+        config = readLoginConfig();
+    } catch (err) {
+        setLoginStatus(err.message || String(err), 'error');
+        return;
+    }
+
+    try {
+        const res = await api('/api/config', config);
+        if (!res.ok) {
+            setLoginStatus('配置失败：' + (res.reason || '未知原因'), 'error');
+            return;
+        }
+    } catch (e) {
+        setLoginStatus('请求失败：' + e, 'error');
+        return;
+    }
+
+    showControlPage();
+    setConnectionState('connecting');
+    clearLog();
+    addLog('已进入控制台，Flask 服务正在发起 MQTT 连接。', 'info');
+    initNeutralPreview();
+    openStream();
+}
+
+// ==================== SSE 事件流 ====================
+function openStream() {
+    if (es) es.close();
+    es = new EventSource('/api/stream');
+
+    es.onmessage = function(e) {
+        let evt;
+        try { evt = JSON.parse(e.data); } catch (err) { return; }
+        handleEvent(evt);
+    };
+
+    es.onerror = function() {
+        // 服务断开或网络异常时 EventSource 会自动重连
+        setConnectionState('disconnected');
+    };
+}
+
+function closeStream() {
+    if (es) {
+        es.close();
+        es = null;
+    }
+}
+
+function handleEvent(evt) {
+    switch (evt.type) {
+        case 'conn':
+            setConnectionState(evt.status);
+            break;
+        case 'log':
+            addLog(evt.message, evt.level || 'info');
+            break;
+        case 'state':
+            syncState(evt.expr);
+            break;
+        case 'pending':
+            setPendingText(evt.cmd);
+            break;
+        case 'seq':
+            sequenceStatusText.textContent = evt.text || '未运行';
+            sequenceRunning = !!evt.running;
+            setSequenceButtonsState();
+            break;
+    }
+}
+
+function syncState(expr) {
+    const normalized = normalizeCommand(expr);
+    if (!isKnownExpression(normalized)) return;
+    currentState = normalized;
+    applyExpression(normalized);
+    setConfirmedButtonState(normalized);
+    currentStateText.textContent = nameMap[normalized] || normalized;
+    lastSyncText.textContent = nowStr();
+}
+
+function setConfirmedButtonState(state) {
+    const normalized = normalizeCommand(state);
+    document.querySelectorAll('.btn-grid button').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.cmd === normalized);
+    });
+}
+
+// ==================== 发送指令 ====================
+async function send(cmd) {
+    const normalized = normalizeCommand(cmd);
+    if (!isKnownExpression(normalized)) {
+        addLog('未知表情指令，无法发送：' + normalized, 'error');
+        return;
+    }
+    try {
+        const res = await api('/api/command', { cmd: normalized });
+        if (!res.ok) {
+            addLog('发送失败：' + (res.reason || '未知原因'), 'error');
+        }
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function simulateDeviceReply() {
+    try {
+        await api('/api/simulate', {});
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+// ==================== 序列控制 ====================
+function updateSequenceText() {
+    if (!sequenceItems.length) {
+        sequenceText.textContent = '未设置';
+        return;
+    }
+    sequenceText.textContent = sequenceItems.map(function(cmd) {
+        return nameMap[cmd] || cmd;
+    }).join(' → ');
+}
+
+function setSequenceButtonsState() {
+    startSeqBtn.disabled = sequenceRunning;
+    stopSeqBtn.disabled = !sequenceRunning;
+}
+
+function renderSequenceList() {
+    sequenceListEl.innerHTML = '';
+
+    if (!sequenceItems.length) {
+        const empty = document.createElement('span');
+        empty.className = 'seq-empty';
+        empty.textContent = '当前未设置动作序列，请添加表情或选择预设。';
+        sequenceListEl.appendChild(empty);
+        updateSequenceText();
+        return;
+    }
+
+    sequenceItems.forEach(function(cmd, index) {
+        const chip = document.createElement('span');
+        chip.className = 'seq-chip';
+        chip.textContent = (index + 1) + '. ' + (nameMap[cmd] || cmd);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.title = '移除该动作';
+        removeBtn.disabled = sequenceRunning;
+        removeBtn.onclick = function() {
+            removeSequenceItem(index);
+        };
+
+        chip.appendChild(removeBtn);
+        sequenceListEl.appendChild(chip);
+
+        if (index < sequenceItems.length - 1) {
+            const arrow = document.createElement('span');
+            arrow.className = 'seq-arrow';
+            arrow.textContent = '→';
+            sequenceListEl.appendChild(arrow);
+        }
+    });
+
+    updateSequenceText();
+    setSequenceButtonsState();
+}
+
+function addSequenceItem(cmd) {
+    const normalized = normalizeCommand(cmd);
+    if (!isKnownExpression(normalized)) {
+        addLog('无法添加未知表情：' + normalized, 'error');
+        return;
+    }
+    if (sequenceRunning) {
+        addLog('多动作执行中，暂不能修改序列。', 'error');
+        return;
+    }
+    sequenceItems.push(normalized);
+    renderSequenceList();
+    addLog('已添加动作到序列：' + normalized, 'info');
+}
+
+function addSelectedToSequence() {
+    addSequenceItem(seqSelect.value);
+}
+
+function removeSequenceItem(index) {
+    if (sequenceRunning) {
+        addLog('多动作执行中，暂不能移除动作。', 'error');
+        return;
+    }
+    if (index < 0 || index >= sequenceItems.length) return;
+    const removed = sequenceItems.splice(index, 1)[0];
+    renderSequenceList();
+    addLog('已移除动作：' + removed, 'info');
+}
+
+function clearSequenceItems() {
+    if (sequenceRunning) {
+        addLog('多动作执行中，暂不能清空序列。', 'error');
+        return;
+    }
+    sequenceItems = [];
+    renderSequenceList();
+    sequenceStatusText.textContent = '未运行';
+    addLog('多动作序列已清空。', 'info');
+}
+
+function setSequencePreset(list) {
+    if (sequenceRunning) {
+        addLog('多动作执行中，暂不能切换预设。', 'error');
+        return;
+    }
+    sequenceItems = list.map(normalizeCommand).filter(isKnownExpression);
+    renderSequenceList();
+    sequenceStatusText.textContent = '未运行';
+    addLog('已加载预设序列：' + sequenceItems.join(' → '), 'info');
+}
+
+function readSequenceSettings() {
+    let intervalMs = parseInt(document.getElementById('seqInterval').value, 10);
+    let repeatCount = parseInt(document.getElementById('seqRepeat').value, 10);
+
+    if (!Number.isFinite(intervalMs)) intervalMs = 3000;
+    if (!Number.isFinite(repeatCount)) repeatCount = 1;
+
+    intervalMs = Math.min(Math.max(intervalMs, 300), 10000);
+    repeatCount = Math.min(Math.max(repeatCount, 1), 99);
+
+    document.getElementById('seqInterval').value = intervalMs;
+    document.getElementById('seqRepeat').value = repeatCount;
+
+    return {
+        interval_ms: intervalMs,
+        repeat: repeatCount,
+        continue_on_timeout: document.getElementById('continueOnTimeout').checked,
+        return_to_init: document.getElementById('returnToInitAfterLoop').checked
+    };
+}
+
+async function startMultiActionLoop() {
+    if (sequenceRunning) {
+        addLog('多动作循环已经在执行中。', 'info');
+        return;
+    }
+    if (!sequenceItems.length) {
+        addLog('请先添加至少一个表情动作。', 'error');
+        return;
+    }
+
+    const settings = readSequenceSettings();
+
+    try {
+        const res = await api('/api/sequence/start', {
+            actions: sequenceItems,
+            interval_ms: settings.interval_ms,
+            repeat: settings.repeat,
+            continue_on_timeout: settings.continue_on_timeout,
+            return_to_init: settings.return_to_init
+        });
+        if (!res.ok) {
+            addLog('无法启动多动作循环：' + (res.reason || '未知原因'), 'error');
+        }
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function stopMultiActionLoop() {
+    if (!sequenceRunning) {
+        sequenceStatusText.textContent = '未运行';
+        return;
+    }
+    try {
+        await api('/api/sequence/stop');
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+// ==================== 眼睛预览 ====================
+function initNeutralPreview() {
+    resetAll();
+    exprEl.textContent = '当前状态：等待设备同步';
+    currentStateText.textContent = '无';
+    setConfirmedButtonState('');
+    setPendingText(null);
+    lastSyncText.textContent = '--';
+    sequenceStatusText.textContent = '未运行';
+    renderSequenceList();
+}
+
+function applyExpression(expr) {
+    const normalized = normalizeCommand(expr);
+    exprEl.textContent = '当前状态：' + (nameMap[normalized] || normalized || '未知');
+    resetAll();
+
+    switch (normalized) {
+        case 'init':
+            setBothEyes({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 40, lowerLidCy: 155,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCyLeft: 38, eyebrowCyRight: 38 });
+            break;
+        case 'close':
+            setBothEyes({ upperLidOpacity: 1, lowerLidOpacity: 0.35, upperLidCy: 5, lowerLidCy: 145,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: false, eyebrowCyLeft: 46, eyebrowCyRight: 46 });
+            break;
+        case 'dis':
+            setBothEyes({ upperLidOpacity: 0.5, lowerLidOpacity: 0, upperLidCy: 32, lowerLidCy: 155,
+                pupilCx: 112, pupilCy: 106, pupilR: 16, highlightOpacity: 0.35, highlightCx: 105,
+                highlightCy: 97, highlightR: 4.5, pupilVisible: true, eyebrowCyLeft: 43, eyebrowCyRight: 43 });
+            break;
+        case 'surprise':
+            setBothEyes({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 72, lowerLidCy: 158,
+                pupilCx: 100, pupilCy: 100, pupilR: 13, highlightOpacity: 1, highlightCx: 93,
+                highlightCy: 90, highlightR: 7.5, pupilVisible: true, eyebrowCyLeft: 26, eyebrowCyRight: 26 });
+            break;
+        case 'tired':
+            setBothEyes({ upperLidOpacity: 0.58, lowerLidOpacity: 0.22, upperLidCy: 28, lowerLidCy: 150,
+                pupilCx: 100, pupilCy: 107, pupilR: 19, highlightOpacity: 0.3, highlightCx: 93,
+                highlightCy: 98, highlightR: 5, pupilVisible: true, eyebrowCyLeft: 47, eyebrowCyRight: 47 });
+            break;
+        case 'smile':
+            setBothEyes({ upperLidOpacity: 0.22, lowerLidOpacity: 0.55, upperLidCy: 45, lowerLidCy: 130,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.85, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCyLeft: 34, eyebrowCyRight: 34 });
+            break;
+        case 'wink':
+            setLeftEye({ upperLidOpacity: 1, lowerLidOpacity: 0.25, upperLidCy: 5, lowerLidCy: 148,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: false, eyebrowCy: 44 });
+            setRightEye({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 40, lowerLidCy: 155,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCy: 38 });
+            break;
+
+        default:
+            break;
+    }
+}
+
+function resetAll() {
+    leftUpperLid.setAttribute('opacity', 0);
+    leftLowerLid.setAttribute('opacity', 0);
+    leftUpperLid.setAttribute('d', 'M45,100 Q100,40 155,100');
+    leftLowerLid.setAttribute('d', 'M45,100 Q100,155 155,100');
+    leftPupil.setAttribute('cx', 100);
+    leftPupil.setAttribute('cy', 100);
+    leftPupil.setAttribute('r', 20);
+    leftPupil.setAttribute('opacity', 1);
+    leftHighlight.setAttribute('cx', 93);
+    leftHighlight.setAttribute('cy', 91);
+    leftHighlight.setAttribute('r', 6);
+    leftHighlight.setAttribute('opacity', 0.9);
+    leftEyebrow.setAttribute('d', 'M48,52 Q75,38 100,56');
+
+    rightUpperLid.setAttribute('opacity', 0);
+    rightLowerLid.setAttribute('opacity', 0);
+    rightUpperLid.setAttribute('d', 'M45,100 Q100,40 155,100');
+    rightLowerLid.setAttribute('d', 'M45,100 Q100,155 155,100');
+    rightPupil.setAttribute('cx', 100);
+    rightPupil.setAttribute('cy', 100);
+    rightPupil.setAttribute('r', 20);
+    rightPupil.setAttribute('opacity', 1);
+    rightHighlight.setAttribute('cx', 93);
+    rightHighlight.setAttribute('cy', 91);
+    rightHighlight.setAttribute('r', 6);
+    rightHighlight.setAttribute('opacity', 0.9);
+    rightEyebrow.setAttribute('d', 'M100,56 Q125,38 152,52');
+}
+
+function setLeftEye(params) {
+    applyEyeParams(leftUpperLid, leftLowerLid, leftPupil, leftHighlight, leftEyebrow, params, 'left');
+}
+
+function setRightEye(params) {
+    applyEyeParams(rightUpperLid, rightLowerLid, rightPupil, rightHighlight, rightEyebrow, params, 'right');
+}
+
+function setBothEyes(params) {
+    setLeftEye(params);
+    setRightEye(params);
+}
+
+function applyEyeParams(uLid, lLid, pupil, highlight, eyebrow, p, side) {
+    uLid.setAttribute('opacity', p.upperLidOpacity);
+    uLid.setAttribute('d', 'M45,100 Q100,' + p.upperLidCy + ' 155,100');
+
+    lLid.setAttribute('opacity', p.lowerLidOpacity);
+    lLid.setAttribute('d', 'M45,100 Q100,' + p.lowerLidCy + ' 155,100');
+
+    pupil.setAttribute('cx', p.pupilCx);
+    pupil.setAttribute('cy', p.pupilCy);
+    pupil.setAttribute('r', p.pupilR);
+    pupil.setAttribute('opacity', p.pupilVisible ? 1 : 0);
+
+    highlight.setAttribute('cx', p.highlightCx);
+    highlight.setAttribute('cy', p.highlightCy);
+    highlight.setAttribute('r', p.highlightR);
+    highlight.setAttribute('opacity', p.highlightOpacity);
+
+    if (side === 'left') {
+        eyebrow.setAttribute('d', 'M48,52 Q75,' + (p.eyebrowCy !== undefined ? p.eyebrowCy : p.eyebrowCyLeft) + ' 100,56');
+    } else {
+        eyebrow.setAttribute('d', 'M100,56 Q125,' + (p.eyebrowCy !== undefined ? p.eyebrowCy : p.eyebrowCyRight) + ' 152,52');
+    }
+}
+
+window.addEventListener('beforeunload', function() {
+    closeStream();
+    api('/api/disconnect');
+});
+
+fillLoginDefaults();
+initNeutralPreview();
+setConnectionState('disconnected');
+showLoginPage();
+</script>
+</body>
+</html>
