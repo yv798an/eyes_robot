@@ -430,8 +430,33 @@ body{
 .cmd-tired{border-left:6px solid #8b5cf6 !important}
 .cmd-smile{border-left:6px solid #10b981 !important}
 .cmd-wink{border-left:6px solid #ec4899 !important}
+.cmd-left_open{border-left:6px solid #14b8a6 !important}
+.cmd-right_open{border-left:6px solid #06b6d4 !important}
+.cmd-blink{border-left:6px solid #a855f7 !important}
 .cmd-test{border-left:6px solid #0ea5e9 !important}
 .cmd-clear{border-left:6px solid #9ca3af !important}
+
+.behavior-row{margin-top:12px}
+.behavior-toggle{
+    width:100%;
+    min-height:46px;
+    border-radius:8px;
+    border:1px solid #1d4ed8;
+    background:#2563eb;
+    color:#ffffff;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .15s ease;
+}
+.behavior-toggle:hover{background:#1d4ed8}
+.behavior-toggle:active{transform:scale(.98)}
+.behavior-toggle.off{
+    border-color:#9ca3af;
+    background:#ffffff;
+    color:#111827;
+}
+.behavior-toggle.off:hover{background:#e5e7eb}
 
 .hint-text{
     margin-top:10px;
@@ -742,6 +767,18 @@ body{
                             <span class="label">当前表情序列</span>
                             <span class="value" id="sequenceText">未设置</span>
                         </div>
+                        <div class="state-item">
+                            <span class="label">动作流状态</span>
+                            <span class="value" id="flowStatusText">未运行</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">环境温度</span>
+                            <span class="value" id="sensorTempText">--</span>
+                        </div>
+                        <div class="state-item">
+                            <span class="label">环境湿度</span>
+                            <span class="value" id="sensorHumText">--</span>
+                        </div>
                     </div>
 
                 </div>
@@ -760,11 +797,66 @@ body{
                         <button class="cmd-tired" data-cmd="tired" onclick="send('tired')">😴 疲倦</button>
                         <button class="cmd-smile" data-cmd="smile" onclick="send('smile')">😊 微笑</button>
                         <button class="cmd-wink" data-cmd="wink" onclick="send('wink')">😉 媚眼</button>
+                        <button class="cmd-left_open" data-cmd="left_open" onclick="send('left_open')">👀 左睁眼</button>
+                        <button class="cmd-right_open" data-cmd="right_open" onclick="send('right_open')">👀 右睁眼</button>
+                        <button class="cmd-blink" data-cmd="blink" onclick="send('blink')">😌 眨眼</button>
+                    </div>
+                    <div class="behavior-row">
+                        <button id="behaviorBtn" class="behavior-toggle" onclick="toggleBehavior()">🌀 微动：开</button>
                     </div>
                     <div class="tool-row">
                         <button class="cmd-test" onclick="simulateDeviceReply()">🧪 模拟设备回复</button>
                         <button class="cmd-clear" onclick="clearLog()">🧹 清空日志</button>
                     </div>
+                </div>
+            </div>
+
+            <div class="panel flow-panel">
+                <div class="panel-title">动作流（程序）</div>
+                <div class="panel-body">
+                    <div class="sequence-builder">
+                        <select id="flowSelect" aria-label="选择动作流">
+                            <option value="selftest">🩺 自检</option>
+                            <option value="greet">👋 打招呼</option>
+                            <option value="alert">🚨 告警</option>
+                            <option value="sleep">😴 休眠</option>
+                            <option value="wake">⏰ 唤醒</option>
+                            <option value="scan">👁 巡视</option>
+                            <option value="demo">🎬 演示</option>
+                        </select>
+                        <button id="startFlowBtn" onclick="startFlow()">▶ 运行</button>
+                        <button id="stopFlowBtn" class="stop" onclick="stopFlow()" disabled>⏹ 停止</button>
+                    </div>
+                    <div class="sequence-check" style="margin-top:10px;">
+                        <span style="font-size:12px;color:#94a3b8;">
+                            运行时会先初始化并独占眼睛，单表情按钮将禁用；告警可抢占，摇杆/按键可中断。
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel relay-panel">
+                <div class="panel-title">继电器温控</div>
+                <div class="panel-body">
+                    <button id="relayBtn" class="behavior-toggle" onclick="toggleRelay()">⭕ 继电器：关</button>
+                    <div class="behavior-row">
+                        <button id="relayAutoBtn" class="behavior-toggle" onclick="toggleRelayAuto()">🌡 自动温控：开</button>
+                    </div>
+                    <div class="sequence-setting">
+                        <label>
+                            温度阈值（°C）
+                            <input id="relayThreshold" type="number" min="0" max="100" step="1" value="30">
+                        </label>
+                        <label>
+                            当前温度
+                            <input id="relayTemp" type="text" value="--" readonly>
+                        </label>
+                    </div>
+                    <div class="tool-row">
+                        <button class="cmd-test" onclick="saveRelayThreshold()">💾 保存阈值</button>
+                        <button class="cmd-clear" onclick="refreshRelay()">🔄 刷新状态</button>
+                    </div>
+                    <div id="relayHint" class="hint-text">温度高于阈值自动开启，降温后自动关闭；也可人工关闭。</div>
                 </div>
             </div>
 
@@ -780,6 +872,9 @@ body{
                             <option value="tired">😴 疲倦</option>
                             <option value="smile">😊 微笑</option>
                             <option value="wink">😉 媚眼</option>
+                            <option value="left_open">👀 左睁眼</option>
+                            <option value="right_open">👀 右睁眼</option>
+                            <option value="blink">😌 眨眼</option>
                         </select>
                         <button onclick="addSelectedToSequence()">➕ 添加</button>
                         <button onclick="clearSequenceItems()">清空序列</button>
@@ -791,7 +886,7 @@ body{
                         <button onclick="setSequencePreset(['smile','wink','surprise'])">演示：微笑→媚眼→惊讶</button>
                         <button onclick="setSequencePreset(['close','init','smile'])">演示：闭眼→正常→微笑</button>
                         <button onclick="setSequencePreset(['tired','close','init'])">演示：疲倦→闭眼→正常</button>
-                        <button onclick="setSequencePreset(['init','close','dis','surprise','tired','smile','wink'])">全表情循环</button>
+                        <button onclick="setSequencePreset(['init','close','dis','surprise','tired','smile','wink','left_open','right_open','blink'])">全表情循环</button>
                     </div>
 
                     <div class="sequence-setting">
@@ -828,12 +923,15 @@ body{
 </div>
 
 <script>
-const KNOWN_EXPRESSIONS = ['init', 'close', 'dis', 'surprise', 'tired', 'smile', 'wink'];
+const KNOWN_EXPRESSIONS = ['init', 'close', 'dis', 'surprise', 'tired', 'smile', 'wink', 'left_open', 'right_open', 'blink'];
 
 let es = null;
 let currentState = '';
 let sequenceRunning = false;
 let sequenceItems = ['smile', 'wink', 'surprise'];
+let behaviorEnabled = true;
+let flowRunning = false;
+let relayState = { on: false, auto: true, reason: '', thr: 30 };
 
 const logEl = document.getElementById('log');
 const exprEl = document.getElementById('expressionName');
@@ -848,6 +946,12 @@ const sequenceListEl = document.getElementById('sequenceList');
 const seqSelect = document.getElementById('seqSelect');
 const startSeqBtn = document.getElementById('startSeqBtn');
 const stopSeqBtn = document.getElementById('stopSeqBtn');
+const flowSelect = document.getElementById('flowSelect');
+const flowStatusText = document.getElementById('flowStatusText');
+const startFlowBtn = document.getElementById('startFlowBtn');
+const stopFlowBtn = document.getElementById('stopFlowBtn');
+const sensorTempText = document.getElementById('sensorTempText');
+const sensorHumText = document.getElementById('sensorHumText');
 
 const leftEye = document.querySelector('#leftEye svg');
 const rightEye = document.querySelector('#rightEye svg');
@@ -869,7 +973,10 @@ const nameMap = {
     surprise: '😲 惊讶',
     tired: '😴 疲倦',
     smile: '😊 微笑',
-    wink: '😉 媚眼'
+    wink: '😉 媚眼',
+    left_open: '👀 左睁眼',
+    right_open: '👀 右睁眼',
+    blink: '😌 眨眼'
 };
 
 function nowStr() {
@@ -1060,6 +1167,120 @@ function handleEvent(evt) {
             sequenceRunning = !!evt.running;
             setSequenceButtonsState();
             break;
+        case 'behavior':
+            setBehaviorUI(!!evt.enabled);
+            break;
+        case 'flow':
+            setFlowUI(!!evt.running, evt.name, evt.event);
+            break;
+        case 'sensor':
+            setSensorUI(evt.temp, evt.hum);
+            break;
+        case 'relay':
+            setRelayUI(evt);
+            break;
+    }
+}
+
+function setSensorUI(temp, hum) {
+    const relayTemp = document.getElementById('relayTemp');
+    if (temp === null || temp === undefined) {
+        sensorTempText.textContent = '--';
+        if (relayTemp) relayTemp.value = '--';
+    } else {
+        sensorTempText.textContent = Number(temp).toFixed(1) + ' °C';
+        if (relayTemp) relayTemp.value = Number(temp).toFixed(1) + ' °C';
+    }
+    if (hum === null || hum === undefined) {
+        sensorHumText.textContent = '--';
+    } else {
+        sensorHumText.textContent = Number(hum).toFixed(1) + ' %RH';
+    }
+}
+
+// ==================== 继电器温控 ====================
+const RELAY_REASON_LABELS = {
+    hot: '高温触发',
+    cool: '降温关闭',
+    manual_on: '人工开启',
+    manual_off: '人工关闭',
+    fault: '传感器故障',
+    boot: '上电',
+    idle: '待机',
+    init: '初始化'
+};
+
+function setRelayUI(evt) {
+    if (!evt) return;
+    if (evt.on !== undefined && evt.on !== null) relayState.on = !!evt.on;
+    if (evt.auto !== undefined && evt.auto !== null) relayState.auto = !!evt.auto;
+    if (evt.reason !== undefined) relayState.reason = evt.reason || '';
+    if (evt.thr !== undefined && evt.thr !== null) relayState.thr = evt.thr;
+
+    const btn = document.getElementById('relayBtn');
+    if (btn) {
+        btn.textContent = relayState.on ? '🔌 继电器：开' : '⭕ 继电器：关';
+        btn.classList.toggle('off', !relayState.on);
+    }
+    const autoBtn = document.getElementById('relayAutoBtn');
+    if (autoBtn) {
+        autoBtn.textContent = relayState.auto ? '🌡 自动温控：开' : '⭕ 自动温控：关';
+        autoBtn.classList.toggle('off', !relayState.auto);
+    }
+    const thrEl = document.getElementById('relayThreshold');
+    if (thrEl && document.activeElement !== thrEl) thrEl.value = relayState.thr;
+
+    const hint = document.getElementById('relayHint');
+    if (hint) {
+        const r = RELAY_REASON_LABELS[relayState.reason] || relayState.reason || '';
+        hint.textContent = (relayState.on ? '当前：开' : '当前：关') +
+            (r ? '（' + r + '）' : '') +
+            '　温度高于阈值自动开启，降温后自动关闭；也可人工关闭。';
+    }
+}
+
+async function toggleRelay() {
+    const target = relayState.on ? 'off' : 'on';
+    try {
+        const res = await api('/api/relay', { state: target });
+        if (!res.ok) addLog('继电器操作失败：' + (res.reason || '未知原因'), 'error');
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function toggleRelayAuto() {
+    const target = !relayState.auto;
+    if (!target && !confirm('关闭自动温控后，温度将不再自动控制继电器，确定继续？')) return;
+    try {
+        const res = await api('/api/relay/auto', { enabled: target });
+        if (!res.ok) addLog('切换自动温控失败：' + (res.reason || '未知原因'), 'error');
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function saveRelayThreshold() {
+    const el = document.getElementById('relayThreshold');
+    const v = parseFloat(el.value);
+    if (!Number.isFinite(v) || v <= 0 || v > 100) {
+        addLog('温度阈值必须是 0~100 之间的数字', 'error');
+        return;
+    }
+    try {
+        const res = await api('/api/relay/threshold', { value: v });
+        if (!res.ok) addLog('保存阈值失败：' + (res.reason || '未知原因'), 'error');
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function refreshRelay() {
+    try {
+        const res = await api('/api/relay');
+        if (res.ok && res.relay) setRelayUI(res.relay);
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
     }
 }
 
@@ -1100,6 +1321,80 @@ async function send(cmd) {
 async function simulateDeviceReply() {
     try {
         await api('/api/simulate', {});
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+// ==================== 动作流开关 ====================
+function setBehaviorUI(enabled) {
+    behaviorEnabled = !!enabled;
+    const btn = document.getElementById('behaviorBtn');
+    if (!btn) return;
+    btn.textContent = behaviorEnabled ? '🌀 微动：开' : '⭕ 微动：关';
+    btn.classList.toggle('off', !behaviorEnabled);
+}
+
+async function toggleBehavior() {
+    const target = !behaviorEnabled;
+    try {
+        const res = await api('/api/behavior', { enabled: target });
+        if (!res.ok) {
+            addLog('切换微动失败：' + (res.reason || '未知原因'), 'error');
+        }
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+// ==================== 动作流（程序） ====================
+const FLOW_LABELS = {
+    selftest: '🩺 自检',
+    greet: '👋 打招呼',
+    alert: '🚨 告警',
+    sleep: '😴 休眠',
+    wake: '⏰ 唤醒',
+    scan: '👁 巡视',
+    demo: '🎬 演示'
+};
+
+function setFlowUI(running, name, event) {
+    flowRunning = !!running;
+    const label = FLOW_LABELS[name] || name || '';
+    if (flowRunning) {
+        flowStatusText.textContent = '运行中：' + label;
+    } else {
+        flowStatusText.textContent = (event === 'done' && label) ? ('已完成：' + label) : '未运行';
+    }
+    if (startFlowBtn) startFlowBtn.disabled = flowRunning;
+    if (stopFlowBtn) stopFlowBtn.disabled = !flowRunning;
+    if (flowSelect) flowSelect.disabled = flowRunning;
+    setExpressionButtonsEnabled(!flowRunning);
+    if (startSeqBtn) startSeqBtn.disabled = flowRunning || sequenceRunning;
+}
+
+function setExpressionButtonsEnabled(enabled) {
+    document.querySelectorAll('.btn-grid button').forEach(function(btn) {
+        btn.disabled = !enabled;
+    });
+}
+
+async function startFlow() {
+    const name = flowSelect ? flowSelect.value : '';
+    if (!name) return;
+    try {
+        const res = await api('/api/flow/start', { name: name });
+        if (!res.ok) {
+            addLog('启动动作流失败：' + (res.reason || '未知原因'), 'error');
+        }
+    } catch (e) {
+        addLog('请求异常：' + e, 'error');
+    }
+}
+
+async function stopFlow() {
+    try {
+        await api('/api/flow/stop', {});
     } catch (e) {
         addLog('请求异常：' + e, 'error');
     }
@@ -1284,6 +1579,7 @@ function initNeutralPreview() {
     setPendingText(null);
     lastSyncText.textContent = '--';
     sequenceStatusText.textContent = '未运行';
+    setBehaviorUI(true);
     renderSequenceList();
 }
 
@@ -1331,10 +1627,43 @@ function applyExpression(expr) {
                 pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
                 highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCy: 38 });
             break;
+        case 'left_open':
+            setLeftEye({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 40, lowerLidCy: 155,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCy: 38 });
+            setRightEye({ upperLidOpacity: 1, lowerLidOpacity: 0.25, upperLidCy: 5, lowerLidCy: 148,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: false, eyebrowCy: 44 });
+            break;
+        case 'right_open':
+            setLeftEye({ upperLidOpacity: 1, lowerLidOpacity: 0.25, upperLidCy: 5, lowerLidCy: 148,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: false, eyebrowCy: 44 });
+            setRightEye({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 40, lowerLidCy: 155,
+                pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
+                highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCy: 38 });
+            break;
+        case 'blink':
+            playBlinkAnimation();
+            break;
 
         default:
             break;
     }
+}
+
+let blinkTimer = null;
+
+function playBlinkAnimation() {
+    setBothEyes({ upperLidOpacity: 1, lowerLidOpacity: 0.35, upperLidCy: 5, lowerLidCy: 145,
+        pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0, highlightCx: 93,
+        highlightCy: 91, highlightR: 6, pupilVisible: false, eyebrowCyLeft: 46, eyebrowCyRight: 46 });
+    clearTimeout(blinkTimer);
+    blinkTimer = setTimeout(function() {
+        setBothEyes({ upperLidOpacity: 0, lowerLidOpacity: 0, upperLidCy: 40, lowerLidCy: 155,
+            pupilCx: 100, pupilCy: 100, pupilR: 20, highlightOpacity: 0.9, highlightCx: 93,
+            highlightCy: 91, highlightR: 6, pupilVisible: true, eyebrowCyLeft: 38, eyebrowCyRight: 38 });
+    }, 130);
 }
 
 function resetAll() {

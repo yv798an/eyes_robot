@@ -25,7 +25,25 @@ DEFAULT_CONFIG = {
 ACK_TIMEOUT_MS = 5000
 LATE_ACK_GRACE_MS = 15000
 
-KNOWN_EXPRESSIONS = ["init", "close", "dis", "surprise", "tired", "smile", "wink", "anger", "shy"]
+KNOWN_EXPRESSIONS = ["init", "close", "dis", "surprise", "tired", "smile", "wink",
+                     "left_open", "right_open", "blink", "anger", "shy"]
+
+# 固件预置动作流（与 flows.h 保持一致）
+KNOWN_FLOWS = ["selftest", "greet", "alert", "sleep", "wake", "scan", "demo"]
+FLOW_LABELS = {
+    "selftest": "🩺 自检",
+    "greet": "👋 打招呼",
+    "alert": "🚨 告警",
+    "sleep": "😴 休眠",
+    "wake": "⏰ 唤醒",
+    "scan": "👁 巡视",
+    "demo": "🎬 演示",
+}
+
+# 动作流（行为层）开关：设备回复这两个状态之一
+CONTROL_STATES = ["behavior_on", "behavior_off"]
+BEHAVIOR_CMD_ON = "behavior on"
+BEHAVIOR_CMD_OFF = "behavior off"
 
 app = Flask(__name__)
 
@@ -52,6 +70,10 @@ class Bridge:
         self.seq_running = False
         self.seq_stop = threading.Event()
         self.seq_thread = None
+        self.behavior_enabled = None
+        self.flow = {"running": False, "name": "", "event": ""}
+        self.sensor = {"temp": None, "hum": None, "ts": None}
+        self.relay = {"on": False, "auto": True, "reason": "", "thr": 30.0}
 
         self._watcher_thread = threading.Thread(target=self._watcher, daemon=True)
         self._watcher_thread.start()
@@ -193,7 +215,61 @@ class Bridge:
 
     # ---------- 状态同步 / ACK ----------
     def _handle_status(self, text, source="设备回复"):
+        raw = str(text or "").strip()
         t = normalize(text)
+
+        # 动作流事件：flow|<name>|<run|done|stop|busy|unknown>
+        if t.startswith("flow|"):
+            parts = raw.split("|")
+            name = parts[1] if len(parts) > 1 else ""
+            ev = parts[2] if len(parts) > 2 else ""
+            running = (ev == "run")
+            self.flow = {"running": running, "name": name if running else "", "event": ev}
+            self.emit({"type": "flow", "running": running, "name": name, "event": ev})
+            label = FLOW_LABELS.get(name, name)
+            if ev == "run":
+                msg = "▶ 动作流开始：{}（{}）".format(label, name)
+            elif ev == "done":
+                msg = "✅ 动作流完成：{}".format(label)
+            elif ev == "stop":
+                msg = "⏹ 动作流已停止：{}".format(label)
+            elif ev == "busy":
+                msg = "⛔ 动作流被拒绝：当前已有动作流在运行"
+            elif ev == "unknown":
+                msg = "⚠️ 未知动作流名称"
+            else:
+                msg = "动作流事件：{}".format(ev)
+            self.emit({"type": "log", "level": "received", "message": "📥 " + msg})
+            return
+
+        # 环境遥测（JSON）：{"temp":25.3,"hum":60.1}
+        if raw.startswith("{"):
+            try:
+                obj = json.loads(raw)
+            except Exception:
+                obj = None
+            if isinstance(obj, dict) and ("temp" in obj or "hum" in obj):
+                self.sensor = {"temp": obj.get("temp"), "hum": obj.get("hum"), "ts": time.time()}
+                self.emit({"type": "sensor", "temp": obj.get("temp"), "hum": obj.get("hum")})
+                if "relay" in obj:
+                    self.relay = {
+                        "on": obj.get("relay") == "on",
+                        "auto": bool(obj.get("auto", True)),
+                        "reason": obj.get("reason", ""),
+                        "thr": obj.get("thr"),
+                    }
+                    self.emit({"type": "relay", **self.relay})
+                return
+
+        # 微动开关状态：独立事件，不参与表情 ACK 流程
+        if t in CONTROL_STATES:
+            enabled = (t == "behavior_on")
+            self.behavior_enabled = enabled
+            self.emit({"type": "behavior", "enabled": enabled})
+            self.emit({"type": "log", "level": "received",
+                       "message": "📥 微动状态更新：{}".format("已开启" if enabled else "已关闭")})
+            return
+
         if not t:
             self.emit({"type": "log", "level": "info", "message": "收到空状态消息，已忽略。"})
             return
@@ -279,6 +355,84 @@ class Bridge:
 
         pend["event"].wait(ACK_TIMEOUT_MS / 1000.0 + 1.0)
         return pend["result"] or {"ok": False, "reason": "timeout"}
+
+    # ---------- 微动开关 ----------
+    def set_behavior(self, enabled):
+        cmd = BEHAVIOR_CMD_ON if enabled else BEHAVIOR_CMD_OFF
+        with self.lock:
+            if not self.connected or self.client is None:
+                self.emit({"type": "log", "level": "error",
+                           "message": "未连接 MQTT 服务器，无法切换微动。"})
+                return {"ok": False, "reason": "not_connected"}
+            try:
+                self.client.publish(self.config["cmd_topic"], cmd, qos=0)
+            except Exception as e:
+                self.emit({"type": "log", "level": "error", "message": "发送异常：" + str(e)})
+                return {"ok": False, "reason": "publish_error"}
+        self.emit({"type": "log", "level": "sent",
+                   "message": "📤 已发送微动指令：{}".format(cmd)})
+        return {"ok": True}
+
+    # ---------- 动作流（程序） ----------
+    def send_raw(self, payload):
+        with self.lock:
+            if not self.connected or self.client is None:
+                self.emit({"type": "log", "level": "error",
+                           "message": "未连接 MQTT 服务器，无法发送：" + payload})
+                return {"ok": False, "reason": "not_connected"}
+            try:
+                self.client.publish(self.config["cmd_topic"], payload, qos=0)
+            except Exception as e:
+                self.emit({"type": "log", "level": "error", "message": "发送异常：" + str(e)})
+                return {"ok": False, "reason": "publish_error"}
+        return {"ok": True}
+
+    def flow_start(self, name):
+        n = normalize(name)
+        if n not in KNOWN_FLOWS:
+            return {"ok": False, "reason": "unknown_flow"}
+        res = self.send_raw("flow start " + n)
+        if res.get("ok"):
+            self.emit({"type": "log", "level": "sent",
+                       "message": "📤 已请求运行动作流：{}".format(FLOW_LABELS.get(n, n))})
+        return res
+
+    def flow_stop(self):
+        res = self.send_raw("flow stop")
+        if res.get("ok"):
+            self.emit({"type": "log", "level": "sent", "message": "📤 已请求停止动作流"})
+        return res
+
+    # ---------- 继电器 / 温控 ----------
+    def relay_cmd(self, state):
+        s = normalize(state)
+        if s not in ("on", "off", "toggle"):
+            return {"ok": False, "reason": "unknown_state"}
+        res = self.send_raw("relay " + s)
+        if res.get("ok"):
+            label = {"on": "打开", "off": "关闭", "toggle": "切换"}.get(s, s)
+            self.emit({"type": "log", "level": "sent", "message": "📤 已发送继电器指令：{}".format(label)})
+        return res
+
+    def relay_set_auto(self, enabled):
+        cmd = "relay auto " + ("on" if enabled else "off")
+        res = self.send_raw(cmd)
+        if res.get("ok"):
+            self.emit({"type": "log", "level": "sent",
+                       "message": "📤 自动温控：{}".format("开启" if enabled else "关闭")})
+        return res
+
+    def relay_set_threshold(self, value):
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return {"ok": False, "reason": "invalid_value"}
+        cmd = "relay threshold {}".format(v)
+        res = self.send_raw(cmd)
+        if res.get("ok"):
+            self.emit({"type": "log", "level": "sent",
+                       "message": "📤 温度阈值已发送：{} °C".format(v)})
+        return res
 
     # ---------- 模拟设备回复 ----------
     def simulate_reply(self):
@@ -406,6 +560,61 @@ def api_disconnect():
     return jsonify({"ok": True})
 
 
+@app.post("/api/behavior")
+def api_behavior():
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled", True))
+    return jsonify(bridge.set_behavior(enabled))
+
+
+@app.get("/api/flow/list")
+def api_flow_list():
+    return jsonify({
+        "ok": True,
+        "flows": [{"name": n, "label": FLOW_LABELS.get(n, n)} for n in KNOWN_FLOWS],
+        "running": bridge.flow,
+    })
+
+
+@app.post("/api/flow/start")
+def api_flow_start():
+    data = request.get_json(silent=True) or {}
+    return jsonify(bridge.flow_start(data.get("name", "")))
+
+
+@app.post("/api/flow/stop")
+def api_flow_stop():
+    return jsonify(bridge.flow_stop())
+
+
+@app.get("/api/relay")
+def api_relay_get():
+    return jsonify({"ok": True, "relay": bridge.relay})
+
+
+@app.post("/api/relay")
+def api_relay_cmd():
+    data = request.get_json(silent=True) or {}
+    return jsonify(bridge.relay_cmd(data.get("state", "")))
+
+
+@app.post("/api/relay/auto")
+def api_relay_auto():
+    data = request.get_json(silent=True) or {}
+    return jsonify(bridge.relay_set_auto(bool(data.get("enabled", True))))
+
+
+@app.post("/api/relay/threshold")
+def api_relay_threshold():
+    data = request.get_json(silent=True) or {}
+    return jsonify(bridge.relay_set_threshold(data.get("value")))
+
+
+@app.get("/api/sensor")
+def api_sensor():
+    return jsonify({"ok": True, "sensor": bridge.sensor})
+
+
 @app.get("/api/state")
 def api_state():
     return jsonify({
@@ -414,6 +623,10 @@ def api_state():
         "state": bridge.current_state,
         "seq_running": bridge.seq_running,
         "pending": bridge.pending["cmd"] if bridge.pending else None,
+        "behavior": bridge.behavior_enabled,
+        "flow": bridge.flow,
+        "sensor": bridge.sensor,
+        "relay": bridge.relay,
     })
 
 
@@ -460,6 +673,14 @@ def api_stream():
             yield sse({"type": "conn", "status": "connected" if bridge.connected else "disconnected"})
             if bridge.current_state:
                 yield sse({"type": "state", "expr": bridge.current_state})
+            if bridge.behavior_enabled is not None:
+                yield sse({"type": "behavior", "enabled": bridge.behavior_enabled})
+            yield sse({"type": "flow", "running": bridge.flow.get("running", False),
+                       "name": bridge.flow.get("name", ""), "event": bridge.flow.get("event", "")})
+            if bridge.sensor.get("temp") is not None or bridge.sensor.get("hum") is not None:
+                yield sse({"type": "sensor", "temp": bridge.sensor.get("temp"),
+                           "hum": bridge.sensor.get("hum")})
+            yield sse({"type": "relay", **bridge.relay})
             while True:
                 try:
                     evt = q.get(timeout=15)
